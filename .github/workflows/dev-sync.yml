@@ -1,0 +1,63 @@
+name: Update dev branch with main
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  rebase-dev:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Configure Git
+        run: |
+          git config --global user.name  "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch branches
+        run: |
+          git fetch --prune origin +refs/heads/*:refs/remotes/origin/*
+
+      - name: Checkout dev
+        run: git checkout dev
+
+      - name: Try to rebase dev onto main
+        id: rebase
+        shell: bash
+        run: |
+          set +e
+          git rebase origin/main
+          status=$?
+          if [ $status -ne 0 ]; then
+            echo "conflicts=true" >> "$GITHUB_OUTPUT"
+            git rebase --abort
+          else
+            echo "conflicts=false" >> "$GITHUB_OUTPUT"
+          fi
+          set -e
+
+      - name: Push updated dev (force-with-lease)
+        if: steps.rebase.outputs.conflicts == 'false'
+        run: |
+          git push origin dev --force-with-lease
+
+      - name: Create PR for conflicts
+        if: steps.rebase.outputs.conflicts == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: conflicts to resolve"
+          title: "chore: conflicts to resolve"
+          body: "This PR contains merge conflicts that need manual resolution."
+          branch: conflict/dev-to-main
+          base: main
