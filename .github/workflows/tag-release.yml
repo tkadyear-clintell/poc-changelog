@@ -19,7 +19,7 @@ jobs:
           SRC="${{ github.event.pull_request.head.ref }}"
           PR_TITLE="${{ github.event.pull_request.title }}"
           PR_LABELS="${{ github.event.pull_request.labels }}"
-          
+          echo "$PR_LABELS"
           # Check if the title or labels contain "major"
           if [[ "$PR_TITLE" == *"MAJOR Release"* ]] || echo "$PR_LABELS" | grep -q "major"; then
             echo "bump=major" >> $GITHUB_OUTPUT
