@@ -24,10 +24,6 @@ jobs:
           git config --global user.name  "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Fetch branches
-        run: |
-          git fetch --prune origin +refs/heads/*:refs/remotes/origin/*
-
       - name: Checkout dev
         run: git checkout dev
 
