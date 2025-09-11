@@ -25,7 +25,7 @@ jobs:
           echo "Example"
           echo "$LABEL" | grep -q "major"
           # Check if the title or labels contain "major"
-          if [[ "$PR_TITLE" == *"MAJOR Release"* ]]  echo "$PR_LABELS" | grep -q "major"; then
+          if [[ "$PR_TITLE" == *"MAJOR Release"* ]] && echo "$LABEL" | grep -q "major"; then
             echo "bump=major" >> $GITHUB_OUTPUT
           elif [[ "$SRC" == hotfix/* ]]; then
             echo "bump=patch" >> $GITHUB_OUTPUT
