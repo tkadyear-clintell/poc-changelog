@@ -1,0 +1,37 @@
+name: Tag & Release on PR merge to main
+
+on:
+  push:
+    branches:
+      - dev
+
+permissions:
+  contents: write
+
+jobs:
+  tag_and_release:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Decide bump (hotfix/* => patch, dev => minor)
+        id: decide
+        run: |
+          SRC="${{ github.event.pull_request.head.ref }}"
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          PR_LABELS="${{ github.event.pull_request.labels }}"
+          LABEL="${{ toJson(github.event.pull_request.labels) }}"
+          echo "$LABEL"
+         
+          echo "Example"
+          echo "$LABEL" | grep -q "major"
+          # Check if the title or labels contain "major"
+          if [[ "$PR_TITLE" == *"MAJOR Release"* ]] && echo "$LABEL" | grep -q "major"; then
+            echo "bump=major" >> $GITHUB_OUTPUT
+          elif [[ "$SRC" == hotfix/* ]]; then
+            echo "bump=patch" >> $GITHUB_OUTPUT
+          elif [[ "$SRC" == "dev" ]]; then
+            echo "bump=minor" >> $GITHUB_OUTPUT 
+          else
+            echo "bump=patch" >> $GITHUB_OUTPUT
+          fi
+          echo "$GITHUB_OUTPUT"
