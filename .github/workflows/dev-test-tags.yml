@@ -10,7 +10,6 @@ permissions:
 
 jobs:
   tag_and_release:
-    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
       - name: Decide bump (hotfix/* => patch, dev => minor)
