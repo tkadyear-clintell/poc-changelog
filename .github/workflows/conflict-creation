@@ -24,10 +24,10 @@ jobs:
           git log --oneline --graph --decorate --all
 
       - name: Check for conflicts
-        run: echo "Conflicts: ${{ steps.rebase.outputs.conflicts }}"
+        run: |
+          echo "Conflicts: ${{ steps.rebase.outputs.conflicts }}"
 
       - name: Create PR for conflicts
-        if: steps.rebase.outputs.conflicts == 'true'
         uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
