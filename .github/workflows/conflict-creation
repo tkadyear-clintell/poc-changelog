@@ -1,0 +1,40 @@
+name: Conflict PR Test
+
+on:
+  push:
+    branches:
+      - feature-branch
+
+jobs:
+  test-conflict-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Rebase feature branch with main
+        run: |
+          git fetch origin
+          git checkout feature-branch
+          git rebase origin/main || echo "Conflict occurred"
+
+      - name: Debug git status
+        run: |
+          git status
+          git log --oneline --graph --decorate --all
+
+      - name: Check for conflicts
+        run: echo "Conflicts: ${{ steps.rebase.outputs.conflicts }}"
+
+      - name: Create PR for conflicts
+        if: steps.rebase.outputs.conflicts == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: conflicts to resolve"
+          title: "chore: conflicts to resolve"
+          body: "This PR contains merge conflicts that need manual resolution."
+          branch: fix/conflict-update-dev-with-main
+          base: main
+          branch-suffix: short-commit-hash
+          delete-branch: true
