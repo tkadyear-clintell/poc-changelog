@@ -12,8 +12,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Make changes to pull request
-        run: date +%s > report.txt
 
       - name: Create PR for conflicts
         id: cpr
