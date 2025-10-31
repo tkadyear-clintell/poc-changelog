@@ -91,6 +91,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: ${{ needs.tag_repository.outputs.new_tag || inputs.version_tag }}
       - name: Print README.md
         run: |
           echo "=== README.md content ==="
