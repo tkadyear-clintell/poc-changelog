@@ -1,0 +1,53 @@
+name: Print README after tag release
+
+on:
+  workflow_run:
+    workflows: ["Tag & Release on PR merge to main"]
+    types:
+      - completed
+    workflow_dispatch:
+      inputs:
+        tag:
+          description: "Version Tag to deploy"
+          required: true
+
+permissions:
+  contents: read
+
+jobs:
+  print_readme:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get latest tag
+        id: get_tag
+        run: |
+          # Fetch all tags
+          git fetch --tags
+          
+          # Get the latest tag (sorted by version)
+          LATEST_TAG=$(git tag --sort=-v:refname | head -n 1)
+          
+          if [ -z "$LATEST_TAG" ]; then
+            echo "No tags found"
+            exit 1
+          fi
+          
+          echo "tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+          echo "Found latest tag: $LATEST_TAG"
+
+      - name: Checkout the tag
+        run: |
+          git checkout ${{ steps.get_tag.outputs.tag }}
+
+      - name: Print README.md
+        run: |
+          echo "=== README.md content ==="
+          cat README.md
+          echo "========================="
+
