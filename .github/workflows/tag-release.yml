@@ -17,7 +17,7 @@ jobs:
         id: decide
         run: |
           SRC=${{ github.event.pull_request.head.ref }}
-          PR_TITLE=${{ github.event.pull_request.title }}
+          PR_TITLE=${{ toJson(github.event.pull_request.title) }}
           PR_LABELS=${{ github.event.pull_request.labels }}
           LABEL=${{ toJson(github.event.pull_request.labels.*.names) }}
           echo $LABEL
