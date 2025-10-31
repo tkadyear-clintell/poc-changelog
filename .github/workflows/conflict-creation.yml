@@ -3,7 +3,7 @@ name: Conflict PR Test
 on:
   push:
     branches:
-      - feature-branch
+      - main
 
 jobs:
   test-conflict-pr:
@@ -11,17 +11,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-
-      - name: Rebase feature branch with main
-        run: |
-          git fetch origin
-          git checkout feature-branch
-          git rebase origin/main || echo "Conflict occurred"
-
-      - name: Debug git status
-        run: |
-          git status
-          git log --oneline --graph --decorate --all
 
       - name: Check for conflicts
         run: |
