@@ -92,7 +92,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          path: ${{ needs.tag_repository.outputs.new_tag || inputs.version_tag }}
+          fetch-depth: 0
+      - name: Checkout the tag
+        run: |
+          git checkout ${{ needs.tag_repository.outputs.new_tag || inputs.version_tag }}  
       - name: Print README.md
         run: |
           echo "=== README.md content ==="
