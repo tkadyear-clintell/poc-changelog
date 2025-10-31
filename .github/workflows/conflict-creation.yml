@@ -46,7 +46,6 @@ jobs:
 
       # solo si hubo conflicto
       - name: Create PR for conflicts
-        if: steps.rebase.outputs.conflicts == 'true'
         id: cpr
         uses: peter-evans/create-pull-request@v7
         with:
