@@ -4,15 +4,36 @@ on:
   pull_request:
     types: [ closed ]
     branches: [ main ]
+  
+  workflow_dispatch:
+      inputs:
+        version_tag:
+          description: "Version Tag to deploy"
+          required: true
 
 permissions:
   contents: write
 
 jobs:
-  tag_and_release:
-    if: github.event.pull_request.merged == true
+  tag_repository:
+    if: github.event.pull_request.merged == true or github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
+      - name: Check if version tag is already used
+        id: check_tag
+        run: |
+          if git tag -l | grep -q "^${{ inputs.version_tag }}$"; then
+            echo "tag_already_used=true" >> $GITHUB_OUTPUT
+          else
+            echo "tag_already_used=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: If tag is already used, exit
+        if: steps.check_tag.outputs.tag_already_used == 'true'
+        run: |
+          echo "Version tag ${{ inputs.version_tag }} is already used. Exiting."
+          exit 1
+
       - name: Capture PR title safely
         run: |
           {
@@ -22,6 +43,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Decide bump (hotfix/* => patch, dev => minor)
+        if: steps.check_tag.outputs.tag_already_used == 'false'
         id: decide
         run: |
           SRC=${{ github.event.pull_request.head.ref }}
@@ -45,6 +67,7 @@ jobs:
           fetch-depth: 0
 
       - name: Bump tag
+        if: steps.check_tag.outputs.tag_already_used == 'false'
         id: bump
         uses: anothrNick/github-tag-action@v1
         env:
@@ -52,10 +75,32 @@ jobs:
           TAG_PREFIX: v
           DEFAULT_BUMP: ${{ steps.decide.outputs.bump }}
 
+  create_changelog:
+    needs: tag_repository
+    if: needs.tag_repository.outputs.new_tag != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.bump.outputs.new_tag }}
+          tag_name: ${{ needs.tag_repository.outputs.new_tag }}
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  print_readme:
+    needs: tag_repository
+    if: needs.tag_repository.outputs.new_tag != '' or github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+    # todo: get the tag from the others steps
+
+      - name: Print README.md
+        run: |
+          echo "=== README.md content ==="
+          cat README.md
+          echo "========================="
