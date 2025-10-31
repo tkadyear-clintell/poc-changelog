@@ -33,7 +33,7 @@ jobs:
           title: "chore: conflicts to resolve"
           body: "This PR contains merge conflicts that need manual resolution."
           branch: fix/conflict-update-dev-with-main
-          base: main
+          base: dev
           branch-suffix: short-commit-hash
           delete-branch: false
 
