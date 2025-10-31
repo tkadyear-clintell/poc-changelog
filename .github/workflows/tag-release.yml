@@ -4,6 +4,7 @@ on:
   pull_request:
     types: [closed]
     branches: [main]
+
   workflow_dispatch:
     inputs:
       version_tag:
@@ -20,6 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       new_tag: ${{ steps.bump.outputs.new_tag }}
+      tag_already_used: ${{ steps.check_tag.outputs.tag_already_used }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -33,12 +35,6 @@ jobs:
           else
             echo "tag_already_used=false" >> $GITHUB_OUTPUT
           fi
-
-      - name: If tag is already used, exit
-        if: steps.check_tag.outputs.tag_already_used == 'true'
-        run: |
-          echo "Version tag ${{ inputs.version_tag }} is already used. Exiting."
-          exit 1
 
       - name: Capture PR title safely
         if: github.event_name == 'pull_request'
@@ -54,9 +50,6 @@ jobs:
         id: decide
         run: |
           SRC=${{ github.event.pull_request.head.ref }}
-          LABELS='${{ toJson(github.event.pull_request.labels) }}'
-          echo "$LABELS"
-
           if [[ "${PR_TITLE:-}" == *"MAJOR Release"* ]]; then
             echo "bump=major" >> $GITHUB_OUTPUT
           elif [[ "$SRC" == hotfix/* ]]; then
@@ -78,7 +71,7 @@ jobs:
 
   create_changelog:
     needs: tag_repository
-    if: ${{ needs.tag_repository.outputs.new_tag != '' }}
+    if: ${{ needs.tag_repository.outputs.tag_already_used == 'false' && needs.tag_repository.outputs.new_tag != '' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -94,7 +87,7 @@ jobs:
 
   print_readme:
     needs: tag_repository
-    if: ${{ needs.tag_repository.outputs.new_tag != '' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.tag_repository.outputs.tag_already_used == 'true' || needs.tag_repository.outputs.new_tag != '' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
