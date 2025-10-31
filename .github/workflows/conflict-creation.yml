@@ -24,21 +24,26 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Try to rebase dev onto main
+      - name: Rebase *dev* onto main
         id: rebase
         shell: bash
         run: |
-          set +e
-          git rebase origin/main || echo "Conflict occurred"
-          status=$?
-          if [ $status -ne 0 ]; then
-            echo "conflicts=true" >> "$GITHUB_OUTPUT"
-           # git rebase --abort
+          set -e
+          git fetch origin
+          # muy importante: nos vamos a dev
+          git checkout dev
+          # intentamos rebasear dev con main
+          if git rebase origin/main; then
+            echo "conflicts=false" >> "$GITHUB_OUTPUT"
           else
             echo "conflicts=true" >> "$GITHUB_OUTPUT"
+            # NO abortamos para que queden los <<<<<<< en el working tree
+            # git rebase --abort
           fi
-          set -e
+
+      # solo si hubo conflicto
       - name: Create PR for conflicts
+        if: steps.rebase.outputs.conflicts == 'true'
         id: cpr
         uses: peter-evans/create-pull-request@v7
         with:
@@ -52,7 +57,7 @@ jobs:
           delete-branch: false
 
       - name: Check outputs
-        if: ${{ steps.cpr.outputs.pull-request-number }}
+        if: steps.cpr.outputs.pull-request-number
         run: |
           echo "Pull Request Number - ${{ steps.cpr.outputs.pull-request-number }}"
           echo "Pull Request URL - ${{ steps.cpr.outputs.pull-request-url }}"
