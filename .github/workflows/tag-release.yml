@@ -13,20 +13,18 @@ jobs:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
+      - name: Capture PR title safely
+        run: |
+          {
+            echo 'PR_TITLE<<EOF'
+            echo "${{ github.event.pull_request.title }}"
+            echo 'EOF'
+          } >> "$GITHUB_ENV"
+
       - name: Decide bump (hotfix/* => patch, dev => minor)
         id: decide
         run: |
           SRC=${{ github.event.pull_request.head.ref }}
-          # Safely read PR title using here-doc to prevent shell interpretation of backticks
-          IFS= read -r PR_TITLE <<'GITHUB_ACTIONS_EOF'
-          ${{ toJson(github.event.pull_request.title) }}
-          GITHUB_ACTIONS_EOF
-          # Remove surrounding JSON quotes and unescape JSON escape sequences
-          PR_TITLE="${PR_TITLE#\"}"
-          PR_TITLE="${PR_TITLE%\"}"
-          PR_TITLE="${PR_TITLE//\\\"/\"}"
-          PR_TITLE="${PR_TITLE//\\\\/\\}"
-          PR_TITLE="${PR_TITLE//\\`/`}"
           PR_LABELS=${{ github.event.pull_request.labels }}
           LABEL=${{ toJson(github.event.pull_request.labels) }}
           echo $LABEL
