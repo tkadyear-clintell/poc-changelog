@@ -12,9 +12,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Check for conflicts
-        run: |
-          echo "Conflicts: ${{ steps.rebase.outputs.conflicts }}"
+      - name: Make changes to pull request
+        run: date +%s > report.txt
 
       - name: Create PR for conflicts
         id: cpr
