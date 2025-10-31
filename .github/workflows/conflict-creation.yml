@@ -17,7 +17,8 @@ jobs:
           echo "Conflicts: ${{ steps.rebase.outputs.conflicts }}"
 
       - name: Create PR for conflicts
-        uses: peter-evans/create-pull-request@v6
+        id: cpr
+        uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "chore: conflicts to resolve"
@@ -26,4 +27,9 @@ jobs:
           branch: fix/conflict-update-dev-with-main
           base: main
           branch-suffix: short-commit-hash
-          delete-branch: true
+          delete-branch: false
+      - name: Check outputs
+        if: ${{ steps.cpr.outputs.pull-request-number }}
+        run: |
+          echo "Pull Request Number - ${{ steps.cpr.outputs.pull-request-number }}"
+          echo "Pull Request URL - ${{ steps.cpr.outputs.pull-request-url }}"
