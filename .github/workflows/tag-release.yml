@@ -2,23 +2,29 @@ name: Tag & Release on PR merge to main
 
 on:
   pull_request:
-    types: [ closed ]
-    branches: [ main ]
-  
+    types: [closed]
+    branches: [main]
   workflow_dispatch:
-      inputs:
-        version_tag:
-          description: "Version Tag to deploy"
-          required: true
+    inputs:
+      version_tag:
+        description: "Version Tag to deploy"
+        required: true
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   tag_repository:
-    if: github.event.pull_request.merged == true or github.event_name == 'workflow_dispatch'
+    if: ${{ (github.event.pull_request.merged == true) || (github.event_name == 'workflow_dispatch') }}
     runs-on: ubuntu-latest
+    outputs:
+      new_tag: ${{ steps.bump.outputs.new_tag }}
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Check if version tag is already used
         id: check_tag
         run: |
@@ -35,6 +41,7 @@ jobs:
           exit 1
 
       - name: Capture PR title safely
+        if: github.event_name == 'pull_request'
         run: |
           {
             echo 'PR_TITLE<<EOF'
@@ -47,24 +54,18 @@ jobs:
         id: decide
         run: |
           SRC=${{ github.event.pull_request.head.ref }}
-          PR_LABELS=${{ github.event.pull_request.labels }}
-          LABEL=${{ toJson(github.event.pull_request.labels) }}
-          echo $LABEL
-         
-          # Check if the title or labels contain "major"
-          if [[ "$PR_TITLE" == *"MAJOR Release"* ]]; then
+          LABELS='${{ toJson(github.event.pull_request.labels) }}'
+          echo "$LABELS"
+
+          if [[ "${PR_TITLE:-}" == *"MAJOR Release"* ]]; then
             echo "bump=major" >> $GITHUB_OUTPUT
           elif [[ "$SRC" == hotfix/* ]]; then
             echo "bump=patch" >> $GITHUB_OUTPUT
           elif [[ "$SRC" == "dev" ]]; then
-            echo "bump=minor" >> $GITHUB_OUTPUT 
+            echo "bump=minor" >> $GITHUB_OUTPUT
           else
             echo "bump=patch" >> $GITHUB_OUTPUT
           fi
-
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Bump tag
         if: steps.check_tag.outputs.tag_already_used == 'false'
@@ -77,11 +78,10 @@ jobs:
 
   create_changelog:
     needs: tag_repository
-    if: needs.tag_repository.outputs.new_tag != ''
+    if: ${{ needs.tag_repository.outputs.new_tag != '' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Create GitHub Release
@@ -94,11 +94,10 @@ jobs:
 
   print_readme:
     needs: tag_repository
-    if: needs.tag_repository.outputs.new_tag != '' or github.event_name == 'workflow_dispatch'
+    if: ${{ needs.tag_repository.outputs.new_tag != '' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     steps:
-    # todo: get the tag from the others steps
-
+      - uses: actions/checkout@v4
       - name: Print README.md
         run: |
           echo "=== README.md content ==="
