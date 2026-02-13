@@ -3,7 +3,7 @@ name: Update dev branch with main
 on:
   push:
     branches:
-      - main
+      - main-2
 
 permissions:
   contents: write
