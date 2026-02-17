@@ -1,0 +1,21 @@
+name: Validate Source Branch
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - main
+
+jobs:
+  validate-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check source branch pattern
+        run: |
+          SOURCE_BRANCH="${{ github.head_ref }}"
+          PATTERN="^(dev|hotfix)/.*$"
+          
+          if [[ ! $SOURCE_BRANCH =~ $PATTERN ]]; then
+            echo "Error: The source branch '$SOURCE_BRANCH' does not match the required pattern"
+            exit 1
+          fi
+          echo "✓ Source branch valid: $SOURCE_BRANCH"

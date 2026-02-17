@@ -2,42 +2,66 @@ name: Tag & Release on PR merge to main
 
 on:
   pull_request:
-    types: [ closed ]
-    branches: [ main ]
+    types: [closed]
+    branches: [main]
+
+  workflow_dispatch:
+    inputs:
+      version_tag:
+        description: "Version Tag to deploy"
+        required: true
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
-  tag_and_release:
-    if: github.event.pull_request.merged == true
+  tag_repository:
+    if: ${{ (github.event.pull_request.merged == true) || (github.event_name == 'workflow_dispatch') }}
     runs-on: ubuntu-latest
+    outputs:
+      new_tag: ${{ steps.bump.outputs.new_tag }}
+      tag_already_used: ${{ steps.check_tag.outputs.tag_already_used }}
     steps:
-      - name: Decide bump (hotfix/* => patch, dev => minor)
-        id: decide
-        run: |
-          SRC=${{ github.event.pull_request.head.ref }}
-          PR_TITLE=${{ github.event.pull_request.title }}
-          PR_LABELS=${{ github.event.pull_request.labels }}
-          LABEL=${{ toJson(github.event.pull_request.labels.*.names) }}
-          echo $LABEL
-         
-          # Check if the title or labels contain "major"
-          if [[ "$PR_TITLE" == *"MAJOR Release"* ]]; then
-            echo "bump=major" >> $GITHUB_OUTPUT
-          elif [[ "$SRC" == hotfix/* ]]; then
-            echo "bump=patch" >> $GITHUB_OUTPUT
-          elif [[ "$SRC" == "dev" ]]; then
-            echo "bump=minor" >> $GITHUB_OUTPUT 
-          else
-            echo "bump=patch" >> $GITHUB_OUTPUT
-          fi
-
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      - name: Check if version tag is already used
+        id: check_tag
+        run: |
+          if git tag -l | grep -q "^${{ inputs.version_tag }}$"; then
+            echo "tag_already_used=true" >> $GITHUB_OUTPUT
+          else
+            echo "tag_already_used=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Capture PR title safely
+        if: github.event_name == 'pull_request'
+        run: |
+          {
+            echo 'PR_TITLE<<EOF'
+            echo "${{ github.event.pull_request.title }}"
+            echo 'EOF'
+          } >> "$GITHUB_ENV"
+
+      - name: Decide bump (hotfix/* => patch, dev => minor)
+        if: steps.check_tag.outputs.tag_already_used == 'false'
+        id: decide
+        run: |
+          SRC=${{ github.event.pull_request.head.ref }}
+          if [[ "${PR_TITLE:-}" == *"MAJOR Release"* ]]; then
+            echo "bump=major" >> $GITHUB_OUTPUT
+          elif [[ "$SRC" == hotfix/* ]]; then
+            echo "bump=patch" >> $GITHUB_OUTPUT
+          elif [[ "$SRC" == "dev" ]]; then
+            echo "bump=minor" >> $GITHUB_OUTPUT
+          else
+            echo "bump=patch" >> $GITHUB_OUTPUT
+          fi
+
       - name: Bump tag
+        if: steps.check_tag.outputs.tag_already_used == 'false'
         id: bump
         uses: anothrNick/github-tag-action@v1
         env:
@@ -45,10 +69,35 @@ jobs:
           TAG_PREFIX: v
           DEFAULT_BUMP: ${{ steps.decide.outputs.bump }}
 
+  create_changelog:
+    needs: tag_repository
+    if: ${{ needs.tag_repository.outputs.tag_already_used == 'false' && needs.tag_repository.outputs.new_tag != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.bump.outputs.new_tag }}
+          tag_name: ${{ needs.tag_repository.outputs.new_tag }}
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  print_readme:
+    needs: tag_repository
+    if: ${{ needs.tag_repository.outputs.tag_already_used == 'true' || needs.tag_repository.outputs.new_tag != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout the tag
+        run: |
+          git checkout ${{ needs.tag_repository.outputs.new_tag || inputs.version_tag }}  
+      - name: Print README.md
+        run: |
+          echo "=== README.md content ==="
+          cat README.md
+          echo "========================="
