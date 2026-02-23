@@ -1,7 +1,7 @@
 name: Validate Source Branch
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, edited]
     branches:
       - main
 
@@ -11,6 +11,11 @@ jobs:
     steps:
       - name: Check source branch pattern
         run: |
+          TARGET_BRANCH="${{ github.base_ref }}"
+          if [[ "$TARGET_BRANCH" != "main" ]]; then
+            echo "✓ PR targets '$TARGET_BRANCH', no source branch restriction."
+            exit 0
+          fi
           SOURCE_BRANCH="${{ github.head_ref }}"
           PATTERN="^(dev|hotfix)/.*$"
           
