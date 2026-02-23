@@ -1,0 +1,40 @@
+name: Tag & Release on PR merge to dev test
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [ dev ]
+
+
+permissions:
+  contents: write
+
+jobs:
+  tag_and_release:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true
+    steps:
+      - name: Decide bump (hotfix/* => patch, dev => minor)
+        id: decide
+        run: |
+          SRC="${{ github.event.pull_request.head.ref }}"
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          PR_LABELS="${{ github.event.pull_request.labels }}"
+          PR_ID="${{ github.event.pull_request.number }}"
+          echo "PR_ID: $PR_ID"
+          echo "PR_TITLE: $PR_TITLE"
+          echo "PR_LABELS: $PR_LABELS"
+          PR_STATUS=$(curl -L -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "X-GitHub-Api-Version: 2022-11-28" https://api.github.com/repos/TamaraKadyear/poc-changelog/pulls/$PR_ID)
+          
+          REQUEST_LABELS=$(echo $PR_STATUS | jq -r '.labels')
+        
+          if [[ "$PR_TITLE" == *"MAJOR Release"* ]]; then
+            echo "bump=major" >> $GITHUB_OUTPUT
+          elif [[ "$SRC" == hotfix/* ]]; then
+            echo "bump=patch" >> $GITHUB_OUTPUT
+          elif [[ "$SRC" == "dev" ]]; then
+            echo "bump=minor" >> $GITHUB_OUTPUT 
+          else
+            echo "bump=patch" >> $GITHUB_OUTPUT
+          fi
+          echo "$GITHUB_OUTPUT"
